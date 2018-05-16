@@ -43,6 +43,9 @@ namespace TelegramAggregator
                 .AddDialogsHandlers()
                 .AddUpdateHandler<SendMessagesHandler>()
                 .AddUpdateHandler<ForwardMessagesHandler>()
+                .AddUpdateHandler<ReplyMessagesHandler>()
+                .AddUpdateHandler<EditMessagesHandler>()
+                .AddUpdateHandler<DeleteMessagesHandler>()
                 .Configure();
 
             services.AddCalendarControlServices();

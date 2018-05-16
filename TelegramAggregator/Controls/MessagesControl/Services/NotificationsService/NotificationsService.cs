@@ -174,7 +174,6 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
 
             var user = GetUserById(vkApi, id);
             return $"{user.FirstName} {user.LastName}";
-
         }
 
         private async Task DeliverForwardedMessageToUser(BotUser botUser, Message message, VkApi vkApi)
