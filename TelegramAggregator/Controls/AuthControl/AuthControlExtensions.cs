@@ -13,7 +13,8 @@ namespace TelegramAggregator.Controls.AuthControl
             where TBot : BotBase<TBot>
         {
             return botBuilder
-                .AddUpdateHandler<AuthCommand>();
+                .AddUpdateHandler<AuthCommand>()
+                .AddUpdateHandler<LogoutCommand>();
         }
 
         public static IServiceCollection AddAuthControlServices(this IServiceCollection services)
