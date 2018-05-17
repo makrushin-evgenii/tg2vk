@@ -378,9 +378,9 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                 ParseMode.Markdown,
                 replyMarkup:new InlineKeyboardMarkup(new []
                 {
-                    InlineKeyboardButton.WithCallbackData($"{post.Likes?.Count} ❤", "wpst-like"), 
-                    InlineKeyboardButton.WithCallbackData($"{post.Comments?.Count} 💬", "wpst-comment"),
-                    InlineKeyboardButton.WithCallbackData($"{post.Reposts?.Count} 🔊", "wpst-share"),
+                    InlineKeyboardButton.WithCallbackData($"{post.Likes?.Count} ❤", $"like/post/{post.Id}/{post.FromId}"), 
+                    InlineKeyboardButton.WithCallbackData($"{post.Comments?.Count} 💬", "comment/post"),
+                    InlineKeyboardButton.WithCallbackData($"{post.Reposts?.Count} 🔊", "share/post"),
                 })
                 );
             

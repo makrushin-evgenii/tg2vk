@@ -13,6 +13,7 @@ using TelegramAggregator.Controls.AuthControl;
 using TelegramAggregator.Controls.CalendarControl;
 using TelegramAggregator.Controls.DialogsControl;
 using TelegramAggregator.Controls.MessagesControl;
+using TelegramAggregator.Controls.MessagesControl.Handlers;
 using TelegramAggregator.Controls.MessagesControl.Handlers.Messages;
 using TelegramAggregator.Controls.MessagesControl.Services.NotificationsService;
 using TelegramAggregator.Model.Repositories;
@@ -46,6 +47,7 @@ namespace TelegramAggregator
                 .AddUpdateHandler<ReplyMessagesHandler>()
                 .AddUpdateHandler<EditMessagesHandler>()
                 .AddUpdateHandler<DeleteMessagesHandler>()
+                .AddUpdateHandler<LikesHandler>()
                 .Configure();
 
             services.AddCalendarControlServices();
