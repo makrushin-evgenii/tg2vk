@@ -15,4 +15,4 @@ vk2tg is a telegram bot for chatting in vk with an emphasis on content. Most typ
 
 Obligatory Screen Shot
 
-![screenshot](https://i.imgur.com/Swqi4hv.png)
+![screenshot](https://i.imgur.com/Swqi4hv.png?1)
