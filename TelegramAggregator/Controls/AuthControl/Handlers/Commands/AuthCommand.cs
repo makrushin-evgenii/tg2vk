@@ -10,7 +10,7 @@ using TelegramAggregator.Model.Entities;
 using TelegramAggregator.Model.Extensions;
 using TelegramAggregator.Model.Repositories;
 
-namespace TelegramAggregator.DialogsControl.Handlers.Commands
+namespace TelegramAggregator.Controls.AuthControl.Handlers.Commands
 {
     public class AuthCommandArgs : ICommandArgs
     {

@@ -16,6 +16,7 @@ using VkNet.Enums.Filters;
 using VkNet.Model;
 using VkNet.Model.Attachments;
 using VkNet.Model.RequestParams;
+using VkNet.Utils;
 
 namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsService
 {
@@ -56,34 +57,49 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
 
             await Task.Factory.StartNew(async () =>
             {
-                var client = new HttpClient();
                 var longPollServer = vkApi.Messages.GetLongPollServer();
                 var ts = longPollServer.Ts;
+                var longPollHistory = await vkApi.Messages.GetLongPollHistoryAsync(
+                    new MessagesGetLongPollHistoryParams
+                    {
+                        Ts = ts
+                    });
+                var pts = longPollHistory.NewPts;
 
                 _listeningTaskIsActive[userTelegramId] = true;
                 while (_listeningTaskIsActive[userTelegramId])
                 {
+                    //
+                    //
+                    // 
+                    var client = new HttpClient();
                     var updateResponse = await client
                         .GetAsync(
                             $"https://{longPollServer.Server}?act=a_check&key={longPollServer.Key}&ts={ts}&wait={LongPoolWait}&mode={LongPoolMode}&version={LongPoolVersion}");
                     var jsoned = await updateResponse.Content.ReadAsStringAsync();
                     var updates = JsonConvert.DeserializeObject<JObject>(jsoned);
+                    ts = updates["ts"].ToObject<ulong>();
+                    //
+                    //
+                    //
 
-                    var longPollHistory = await vkApi.Messages.GetLongPollHistoryAsync(
+                    longPollHistory = await vkApi.Messages.GetLongPollHistoryAsync(
                         new MessagesGetLongPollHistoryParams
                         {
-                            Ts = ts
+                            Pts = pts
                         });
+
+                    pts = longPollHistory.NewPts;
 
                     foreach (var message in longPollHistory.Messages)
                     {
-                        DeliverMessageToUser(botUser, vkApi, message);
+                        await DeliverMessageToUser(botUser, vkApi, message);
                     }
 
-                    ts = updates["ts"].ToObject<ulong>();
                 }
             });
         }
+
 
         public void DisableNotifications(BotUser botUser)
         {

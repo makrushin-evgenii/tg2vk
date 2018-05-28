@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Swashbuckle.AspNetCore.Swagger;
 using Telegram.Bot.Framework;
 using TelegramAggregator.Controls.AuthControl;
 using TelegramAggregator.Controls.CalendarControl;
@@ -59,20 +58,6 @@ namespace TelegramAggregator
 
             services.AddScoped<IBotUserRepository, BotUserRepository>();
             services.AddScoped<INotificationsService, NotificationsService>();
-
-            services.AddSwaggerGen(c =>
-            {
-                c.SwaggerDoc("v0", new Info
-                {
-                    Version = "v0",
-                    Title = "TelegramAggregator API",
-                    Description = "Telegram Aggregator Web API"
-                });
-
-                var basePath = AppContext.BaseDirectory;
-                var xmlPath = Path.Combine(basePath, "CalendarPicker.xml");
-                c.IncludeXmlComments(xmlPath);
-            });
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
@@ -80,10 +65,6 @@ namespace TelegramAggregator
             loggerFactory.AddConsole(_configuration.GetSection("Logging"));
             loggerFactory.AddDebug();
             ILogger logger = loggerFactory.CreateLogger<Startup>();
-
-            app.UseMvc();
-            app.UseSwagger();
-            app.UseSwaggerUI(c => { c.SwaggerEndpoint("/swagger/v0/swagger.json", "TelegramAggregator V0"); });
 
             if (env.IsDevelopment())
             {

@@ -1,16 +1,10 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Telegram.Bot.Framework;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.ReplyMarkups;
-using TelegramAggregator.Controls.AuthControl.Common;
 using TelegramAggregator.Controls.MessagesControl.Services.NotificationsService;
-using TelegramAggregator.Model.Entities;
-using TelegramAggregator.Model.Extensions;
 using TelegramAggregator.Model.Repositories;
 
-namespace TelegramAggregator.DialogsControl.Handlers.Commands
+namespace TelegramAggregator.Controls.AuthControl.Handlers.Commands
 {
     public class LogoutCommandArgs : ICommandArgs
     {

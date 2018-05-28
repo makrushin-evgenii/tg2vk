@@ -1,7 +1,7 @@
 ﻿using System;
 using Microsoft.Extensions.DependencyInjection;
 using Telegram.Bot.Framework;
-using TelegramAggregator.DialogsControl.Handlers.Commands;
+using TelegramAggregator.Controls.AuthControl.Handlers.Commands;
 
 namespace TelegramAggregator.Controls.AuthControl
 {
