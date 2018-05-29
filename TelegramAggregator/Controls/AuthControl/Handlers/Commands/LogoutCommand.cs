@@ -36,6 +36,8 @@ namespace TelegramAggregator.Controls.AuthControl.Handlers.Commands
             _notificationsService.DisableNotifications(botUser);
             botUser.VkAccount = null;
 
+            await bot.Client.SendTextMessageAsync(botUser.TelegramChatId, "Log out");
+
             return UpdateHandlingResult.Handled;
         }
     }

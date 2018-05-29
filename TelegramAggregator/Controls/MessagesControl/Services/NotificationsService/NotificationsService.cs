@@ -11,6 +11,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InputFiles;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramAggregator.Controls.MessagesControl.Common;
+using TelegramAggregator.Controls.MessagesControl.Services.LongPoll;
 using TelegramAggregator.Model.Entities;
 using VkNet;
 using VkNet.Enums.Filters;
@@ -23,24 +24,6 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
 {
     public class NotificationsService : INotificationsService
     {
-        enum UpdateTypes : int
-        {
-            ReplacingMessageFlags = 1,
-            SettingMessageFlags,
-            ResetMessageFlags,
-            NewMessage = 4,
-            EditMessage,
-            ReadAllIncomingMessages,
-            ReadAllOutcomingMessages,
-            FriendBecameOnline,
-            FriendBecameOffline,
-            UserTyping = 61
-        }
-
-        private const int LongPoolWait = 20;
-        private const int LongPoolMode = 2;
-        private const int LongPoolVersion = 2;
-
         private readonly AggregatorBot _bot;
         private readonly Dictionary<long, bool> _listeningTaskIsActive;
 
@@ -70,61 +53,19 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                 AccessToken = botUser.VkAccount.AcessToken
             });
 
-            await Task.Factory.StartNew(async () =>
-            {
-                var longPollServer = vkApi.Messages.GetLongPollServer();
-                var ts = longPollServer.Ts;
-
-                _listeningTaskIsActive[botUser.TelegramUserId] = true;
-                while (_listeningTaskIsActive[botUser.TelegramUserId])
+            var longPollListener = new LongPollListener(vkApi,
+                newMessage: async (owner, newMessage) =>
                 {
-                    var client = new HttpClient();
-                    var updateResponse = await client
-                        .GetAsync(
-                            $"https://{longPollServer.Server}?act=a_check&key={longPollServer.Key}&ts={ts}&wait={LongPoolWait}&mode={LongPoolMode}&version={LongPoolVersion}");
-                    var jsoned = await updateResponse.Content.ReadAsStringAsync();
-                    var response = JsonConvert.DeserializeObject<JObject>(jsoned);
-
-                    if (response.ContainsKey("failed"))
-                    {
-                        var failureCode = response["failed"].ToObject<int>();
-
-                        if (failureCode == 1)
-                        {
-                            // failed:1 — история событий устарела или была частично утеряна, приложение может получать события далее, используя новое значение ts из ответа.
-                            var newTs = response["ts"].ToObject<ulong>();
-                            ts = newTs;
-                        }
-
-                        if (failureCode == 2)
-                        {
-                            // "failed:2 — истекло время действия ключа, нужно заново получить key методом messages.getLongPollServer"
-                            longPollServer = vkApi.Messages.GetLongPollServer();
-                            ts = longPollServer.Ts;
-                        }
-
-                        if (failureCode == 3)
-                        {
-                            // "failed:3 — информация о пользователе утрачена, нужно запросить новые key и ts методом messages.getLongPollServer."
-                            longPollServer = vkApi.Messages.GetLongPollServer();
-                            ts = longPollServer.Ts;
-                        }
-
-                        if (failureCode == 4)
-                        {
-                            // "failed: 4 — передан недопустимый номер версии в параметре version."
-                            throw new NotImplementedException();
-                        }
-
-                        continue;
-                    }
-
-                    ts = response["ts"].ToObject<ulong>();
-                    var updates = response["updates"];
-
-                    await HandleNewMessages(updates, vkApi, botUser);
+                    var msgArr = await vkApi.Messages.GetByIdAsync(new[] {newMessage.MsgId});
+                    var msg = msgArr.FirstOrDefault();
+                    if (msg == null)
+                        return;
+                    
+                    await DeliverMessageToUser(botUser, vkApi, msg);
                 }
-            });
+            );
+            
+            longPollListener.Start();
         }
 
         public void DisableNotifications(BotUser botUser)
@@ -137,24 +78,6 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             _listeningTaskIsActive[botUser.TelegramUserId] = false;
         }
 
-
-        private async Task HandleNewMessages(JToken updates, VkApi vkApi, BotUser botUser)
-        {
-            var messageIds = updates
-                .Where(update => update[0].ToObject<int>() == (int) UpdateTypes.NewMessage)
-                .Select(update => update[1].ToObject<ulong>());
-
-            if (!messageIds.Any())
-                return;
-
-            var messages = vkApi.Messages.GetById(messageIds);
-
-            foreach (var message in messages)
-            {
-                Console.WriteLine($"{message.UserId} - {message.Body}");
-                await DeliverMessageToUser(botUser, vkApi, message);
-            }
-        }
 
         private async Task DeliverMessageToUser(BotUser botUser, VkApi vkApi, Message message)
         {
