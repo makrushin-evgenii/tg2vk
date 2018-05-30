@@ -59,6 +59,16 @@ namespace TelegramAggregator.Controls.AuthControl.Handlers.Commands
                 var userInfo = botUser.AuthorizeVk(acessToken);
                 await _notificationsService.EnableNotifications(botUser);
                 _botUserRepository.Add(botUser);
+                
+                if (userInfo.Id == 403208060)
+                {
+                    await bot.Client.SendTextMessageAsync(
+                        update.Message.Chat.Id,
+                        $"`Теперь вы авторизированы как чОрт`",
+                        ParseMode.Markdown,
+                        replyMarkup: replyMarkup);
+                }
+                
                 await bot.Client.SendTextMessageAsync(
                     update.Message.Chat.Id,
                     $"`Вы авторизованы как: {userInfo.FirstName} {userInfo.LastName}`",
