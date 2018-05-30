@@ -4,12 +4,14 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InputFiles;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramAggregator.Controls.MessagesControl.Common;
+using TelegramAggregator.Controls.MessagesControl.Services.LongPoll;
 using TelegramAggregator.Model.Entities;
 using VkNet;
 using VkNet.Enums.Filters;
@@ -22,10 +24,6 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
 {
     public class NotificationsService : INotificationsService
     {
-        private const int LongPoolWait = 20;
-        private const int LongPoolMode = 2;
-        private const int LongPoolVersion = 2;
-
         private readonly AggregatorBot _bot;
         private readonly Dictionary<long, bool> _listeningTaskIsActive;
 
@@ -55,51 +53,20 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                 AccessToken = botUser.VkAccount.AcessToken
             });
 
-            await Task.Factory.StartNew(async () =>
-            {
-                var longPollServer = vkApi.Messages.GetLongPollServer();
-                var ts = longPollServer.Ts;
-                var longPollHistory = await vkApi.Messages.GetLongPollHistoryAsync(
-                    new MessagesGetLongPollHistoryParams
-                    {
-                        Ts = ts
-                    });
-                var pts = longPollHistory.NewPts;
-
-                _listeningTaskIsActive[userTelegramId] = true;
-                while (_listeningTaskIsActive[userTelegramId])
+            var longPollListener = new LongPollListener(vkApi,
+                newMessage: async (owner, newMessage) =>
                 {
-                    //
-                    //
-                    // 
-                    var client = new HttpClient();
-                    var updateResponse = await client
-                        .GetAsync(
-                            $"https://{longPollServer.Server}?act=a_check&key={longPollServer.Key}&ts={ts}&wait={LongPoolWait}&mode={LongPoolMode}&version={LongPoolVersion}");
-                    var jsoned = await updateResponse.Content.ReadAsStringAsync();
-                    var updates = JsonConvert.DeserializeObject<JObject>(jsoned);
-                    ts = updates["ts"].ToObject<ulong>();
-                    //
-                    //
-                    //
-
-                    longPollHistory = await vkApi.Messages.GetLongPollHistoryAsync(
-                        new MessagesGetLongPollHistoryParams
-                        {
-                            Pts = pts
-                        });
-
-                    pts = longPollHistory.NewPts;
-
-                    foreach (var message in longPollHistory.Messages)
-                    {
-                        await DeliverMessageToUser(botUser, vkApi, message);
-                    }
-
+                    var msgArr = await vkApi.Messages.GetByIdAsync(new[] {newMessage.MsgId});
+                    var msg = msgArr.FirstOrDefault();
+                    if (msg == null)
+                        return;
+                    
+                    await DeliverMessageToUser(botUser, vkApi, msg);
                 }
-            });
+            );
+            
+            longPollListener.Start();
         }
-
 
         public void DisableNotifications(BotUser botUser)
         {
@@ -110,6 +77,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
 
             _listeningTaskIsActive[botUser.TelegramUserId] = false;
         }
+
 
         private async Task DeliverMessageToUser(BotUser botUser, VkApi vkApi, Message message)
         {
@@ -141,7 +109,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             var groupChatMessage = message.ChatId.HasValue;
 
             var user = GetNameById(vkApi, message.UserId.Value);
-            
+
             if (outgoingMessage && !groupChatMessage)
             {
                 heading = $"Вы -> {user}";
@@ -179,7 +147,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
 
             return peers.First();
         }
-        
+
         private static string GetNameById(VkApi vkApi, long id)
         {
             if (id < 0)
@@ -211,7 +179,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
         private async Task DeliverAttachmentsToUser(BotUser botUser, VkApi vkApi, IEnumerable<Attachment> attachments)
         {
             var userTelegramId = botUser.TelegramUserId;
-            
+
             foreach (var attachment in attachments)
             {
                 //
@@ -227,7 +195,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                     // OK
                     await DeliverPhotoToUser(userTelegramId, (Photo) attachment.Instance);
                 }
-                
+
                 if (attachment.Type == typeof(Post))
                 {
                     // OK
@@ -240,7 +208,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                     // TODO: Обходить ограничение на получение N аудиозаписей в сути
                     await DeliverAudioToUser(userTelegramId, (Audio) attachment.Instance);
                 }
-                
+
                 if (attachment.Type == typeof(Video))
                 {
                     // TODO: Не могу получить ссылку на плеер и видео в целом. 
@@ -253,7 +221,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                     // OK
                     await DeliverDocumentToUser(userTelegramId, (Document) attachment.Instance);
                 }
-                
+
                 if (attachment.Type == typeof(Sticker))
                 {
                     // OK
@@ -350,11 +318,15 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             var ownerName = wallReply.OwnerId.HasValue
                 ? GetNameById(vkApi, wallReply.OwnerId.Value)
                 : "Undefined";
-            
+
             await _bot.Client.SendTextMessageAsync(userTelegramId,
                 $"`Вложение: Комментарий {ownerName} к записи на стене`\r\n{wallReply.Text}",
                 ParseMode.Markdown,
-                replyMarkup:new InlineKeyboardMarkup(new []{InlineKeyboardButton.WithCallbackData($"{wallReply.Likes.Count} ❤️", "wrpl-like"), InlineKeyboardButton.WithCallbackData("Ответить", "wrpl-reply")})
+                replyMarkup: new InlineKeyboardMarkup(new[]
+                {
+                    InlineKeyboardButton.WithCallbackData($"{wallReply.Likes.Count} ❤️", "wrpl-like"),
+                    InlineKeyboardButton.WithCallbackData("Ответить", "wrpl-reply")
+                })
             );
         }
 
@@ -368,7 +340,6 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             };
             var bestThumb = giftThumbs.FirstOrDefault(uri => uri != null);
             await _bot.Client.SendPhotoAsync(userTelegramId, new InputOnlineFile(bestThumb.ToString()));
-
         }
 
         private async Task DeliverStickerToUser(long userTelegramId, Sticker sticker)
@@ -382,7 +353,6 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             };
             var bestSrcUri = stickerSrcUris.FirstOrDefault(uri => uri != null);
             await _bot.Client.SendPhotoAsync(userTelegramId, new InputOnlineFile(bestSrcUri));
-
         }
 
         private async Task DeliverPostToUser(BotUser botUser, Post post, VkApi vkApi)
@@ -390,16 +360,17 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             // CopyHistory еще надо обрабатывать... т.е. репосты репостов тип
             await _bot.Client.SendTextMessageAsync(
                 botUser.TelegramUserId,
-                $"`Вложение: Запись со стены. {GetNameById(vkApi, post.FromId.Value)}`\r\n {post.Text}", 
+                $"`Вложение: Запись со стены. {GetNameById(vkApi, post.FromId.Value)}`\r\n {post.Text}",
                 ParseMode.Markdown,
-                replyMarkup:new InlineKeyboardMarkup(new []
+                replyMarkup: new InlineKeyboardMarkup(new[]
                 {
-                    InlineKeyboardButton.WithCallbackData($"{post.Likes?.Count} ❤", $"like/post/{post.Id}/{post.FromId}"), 
+                    InlineKeyboardButton.WithCallbackData($"{post.Likes?.Count} ❤",
+                        $"like/post/{post.Id}/{post.FromId}"),
                     InlineKeyboardButton.WithCallbackData($"{post.Comments?.Count} 💬", "comment/post"),
                     InlineKeyboardButton.WithCallbackData($"{post.Reposts?.Count} 🔊", "share/post"),
                 })
-                );
-            
+            );
+
             await DeliverAttachmentsToUser(botUser, vkApi, post.Attachments);
 
             foreach (var copyPost in post.CopyHistory)
@@ -449,13 +420,15 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                 : "Undefined";
 
             await _bot.Client.SendTextMessageAsync(userTelegramId,
-                $"`Вложение: {pollType} от {ownerName}`\r\n{poll.Question}\r\n{pollAnswerStats}\r\nВсего проголосовало {poll.Votes} человек", ParseMode.Markdown);
+                $"`Вложение: {pollType} от {ownerName}`\r\n{poll.Question}\r\n{pollAnswerStats}\r\nВсего проголосовало {poll.Votes} человек",
+                ParseMode.Markdown);
         }
 
         private async Task DeliverNoteToUser(long userTelegramId, Note note, VkApi vkApi)
         {
             await _bot.Client.SendTextMessageAsync(userTelegramId,
-                $"`Вложение: Заметка пользователя {GetNameById(vkApi, note.OwnerId.Value)}`\r\n{note.Title}\r\n{note.Text}", ParseMode.Markdown);
+                $"`Вложение: Заметка пользователя {GetNameById(vkApi, note.OwnerId.Value)}`\r\n{note.Title}\r\n{note.Text}",
+                ParseMode.Markdown);
         }
 
         private async Task DeliverLinkToUser(long userTelegramId, Link link)
@@ -477,7 +450,8 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             }
             catch (Exception e)
             {
-                await _bot.Client.SendTextMessageAsync(userTelegramId, $"Вложение: Документ {document.Title} {document.Uri}");
+                await _bot.Client.SendTextMessageAsync(userTelegramId,
+                    $"Вложение: Документ {document.Title} {document.Uri}");
             }
         }
 

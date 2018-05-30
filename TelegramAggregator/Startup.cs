@@ -1,6 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -87,7 +85,11 @@ namespace TelegramAggregator
                 logger.LogInformation("Webhook is set for bot " + nameof(AggregatorBot));
             }
 
-            app.Run(async context => { await context.Response.WriteAsync("Hello World!"); });
+            app.Run(async context =>
+            {
+                logger.LogInformation("Processing request {0}", context.Request.Path);
+                await context.Response.WriteAsync("Hello World!");
+            });
         }
     }
 }
