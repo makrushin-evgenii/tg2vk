@@ -164,12 +164,12 @@ namespace TelegramAggregator.Controls.MessagesControl
         
         private static async Task GetStickerMsgSendParams(IBot bot, Message message, MessagesSendParams messagesSendParams, VkApi vkApi)
         {
-            var stickerFile = await bot.Client.GetFileAsync(message.Sticker.FileId);
+            var stickerFile = await bot.Client.GetFileAsync(message.Sticker.Thumb.FileId);
 
             try
             {
                 messagesSendParams.Message = message.Caption;
-                messagesSendParams.Attachments = new[] { await UploadDocumentToVk(bot, vkApi, stickerFile, stickerFile.FilePath) };
+                messagesSendParams.Attachments = new[] { UploadPhotoToVk(bot, vkApi, stickerFile) };
             }
             catch (Exception e)
             {

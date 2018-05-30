@@ -70,7 +70,7 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
             }
 
             _taskIsActive = false;
-            _listeningTask.Wait();
+            _listeningTask.Dispose();
 
             Console.WriteLine("Прослушивание остановлено");
         }

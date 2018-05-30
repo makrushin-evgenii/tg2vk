@@ -27,6 +27,7 @@
     <Folder Include="devnull\music" />
     <Folder Include="devnull\photos" />
     <Folder Include="devnull\stickers" />
+    <Folder Include="devnull\thumbnails" />
     <Folder Include="devnull\videos" />
     <Folder Include="devnull\video_notes" />
     <Folder Include="devnull\voice" />

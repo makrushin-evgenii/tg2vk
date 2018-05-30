@@ -25,21 +25,21 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
     public class NotificationsService : INotificationsService
     {
         private readonly AggregatorBot _bot;
-        private readonly Dictionary<long, bool> _listeningTaskIsActive;
+        private readonly Dictionary<long, LongPollListener> _listeners;
 
         public NotificationsService(AggregatorBot bot)
         {
             _bot = bot;
-            _listeningTaskIsActive = new Dictionary<long, bool>();
+            _listeners = new Dictionary<long, LongPollListener>();
         }
 
         public async Task EnableNotifications(BotUser botUser)
         {
             var userTelegramId = botUser.TelegramUserId;
-            if (_listeningTaskIsActive.ContainsKey(userTelegramId) && _listeningTaskIsActive[userTelegramId])
+            if (_listeners.ContainsKey(userTelegramId))
             {
-                throw new ArgumentException(
-                    $"Получение уведомлений для пользователя tgid{userTelegramId} уже включено");
+                _listeners[userTelegramId].Stop();
+                _listeners.Remove(userTelegramId);
             }
 
             if (botUser.VkAccount == null)
@@ -73,16 +73,18 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
             );
             
             longPollListener.Start();
+
+            _listeners[userTelegramId] = longPollListener;
         }
 
         public void DisableNotifications(BotUser botUser)
         {
-            if (!_listeningTaskIsActive.ContainsKey(botUser.TelegramUserId))
+            if (!_listeners.ContainsKey(botUser.TelegramUserId))
             {
                 return;
             }
 
-            _listeningTaskIsActive[botUser.TelegramUserId] = false;
+            _listeners[botUser.TelegramUserId].Stop();
         }
 
 
