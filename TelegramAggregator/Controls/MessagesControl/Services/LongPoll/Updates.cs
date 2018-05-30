@@ -24,12 +24,12 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
 
             if (response == null)
             {
-                return updates;
+                return null;
             }
             
             if (!response.ContainsKey("ts") || !response.ContainsKey("updates"))
             {
-                return updates;
+                return null;
             }
 
             updates.Ts = (ulong) response["ts"];

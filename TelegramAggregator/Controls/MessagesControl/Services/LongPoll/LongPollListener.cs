@@ -90,6 +90,9 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
                 
                 foreach (var update in updates)
                 {
+                    if (update == null)
+                        continue;
+                    
                     switch (update.Instance)
                     {
                         case EditMessage editMessage:

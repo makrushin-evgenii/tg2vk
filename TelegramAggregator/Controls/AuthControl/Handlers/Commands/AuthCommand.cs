@@ -67,6 +67,7 @@ namespace TelegramAggregator.Controls.AuthControl.Handlers.Commands
                         $"`Теперь вы авторизированы как чОрт`",
                         ParseMode.Markdown,
                         replyMarkup: replyMarkup);
+                    return UpdateHandlingResult.Handled;
                 }
                 
                 await bot.Client.SendTextMessageAsync(
