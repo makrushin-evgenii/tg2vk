@@ -28,19 +28,23 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
         public ulong? Pts { get; private set; }
         public ulong Ts { get; private set; }
 
-        public async Task<VkResponse> GetUpdates()
+        public async Task<VkResponse> GetUpdatesResponce()
         {
             try
             {
                 var client = new HttpClient();
+                Console.WriteLine($"Запрос LongPoll, c парметрами" +
+                                  $"Uri https://{Server}?act=a_check&key={Key}&ts={Ts}&wait={Wait}&mode={Mode}&version={Version}");
                 var updateResponse = await client
                     .GetAsync(
                         $"https://{Server}?act=a_check&key={Key}&ts={Ts}&wait={Wait}&mode={Mode}&version={Version}");
                 var jsoned = await updateResponse.Content.ReadAsStringAsync();
                 var response = JsonConvert.DeserializeObject<JObject>(jsoned);
+                Console.WriteLine($"Получен ответ от LongPoll\r\n{response}");
 
                 if (response.ContainsKey("failed"))
                 {
+                    Console.WriteLine($"Обработка ошибки LongPoll...");
                     HandleFailure(response);
                     return null;
                 }
@@ -67,25 +71,32 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
 
             var failureCode = response["failed"].ToObject<int>();
 
-            switch (failureCode)
+            if (failureCode == 1)
             {
-                case 1:
-                    // failed:1 — история событий устарела или была частично утеряна, приложение может получать события далее, используя новое значение ts из ответа.
-                    var newTs = response["ts"].ToObject<ulong>();
-                    Ts = newTs;
-                    break;
-                case 2:
-                case 3:
-                {
-                    // "failed:2 — истекло время действия ключа, нужно заново получить key методом messages.getLongPollServer"
-                    // "failed:3 — информация о пользователе утрачена, нужно запросить новые key и ts методом messages.getLongPollServer."
-                    var longPollServer = _vkApi.Messages.GetLongPollServer();
-                    ResetLongPollServer(longPollServer);
-                    break;
-                }
-                case 4:
-                    // "failed: 4 — передан недопустимый номер версии в параметре version."
-                    throw new NotImplementedException();
+                Console.WriteLine("failed:1 — история событий устарела или была частично утеряна, " +
+                                  "приложение может получать события далее, " +
+                                  "используя новое значение ts из ответа.");
+                var newTs = response["ts"].ToObject<ulong>();
+                Ts = newTs;
+            }
+            else if (failureCode == 2)
+            {
+                Console.WriteLine("failed:2 — истекло время действия ключа, " +
+                                  "нужно заново получить key методом messages.getLongPollServer");
+                var longPollServer = _vkApi.Messages.GetLongPollServer();
+                ResetLongPollServer(longPollServer);
+            }
+            else if (failureCode == 3)
+            {
+                Console.WriteLine("failed:3 — информация о пользователе утрачена, " +
+                                  "нужно запросить новые key и ts методом messages.getLongPollServer.");
+                var longPollServer = _vkApi.Messages.GetLongPollServer();
+                ResetLongPollServer(longPollServer);
+            }
+            else if (failureCode == 4)
+            {
+                Console.WriteLine("failed: 4 — передан недопустимый номер версии в параметре version.");
+                throw new NotImplementedException();
             }
         }
 

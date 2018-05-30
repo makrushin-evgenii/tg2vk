@@ -60,8 +60,15 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.NotificationsServ
                     var msg = msgArr.FirstOrDefault();
                     if (msg == null)
                         return;
-                    
-                    await DeliverMessageToUser(botUser, vkApi, msg);
+
+                    try
+                    {
+                        await DeliverMessageToUser(botUser, vkApi, msg);
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                    }
                 }
             );
             

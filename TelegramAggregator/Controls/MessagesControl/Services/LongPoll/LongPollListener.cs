@@ -81,8 +81,13 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
 
             while (_taskIsActive)
             {
-                var updates = Updates.FromJson(await longPoll.GetUpdates());
+                var updates = Updates.FromJson(await longPoll.GetUpdatesResponce());
 
+                if (updates == null)
+                {
+                    continue;
+                }
+                
                 foreach (var update in updates)
                 {
                     switch (update.Instance)

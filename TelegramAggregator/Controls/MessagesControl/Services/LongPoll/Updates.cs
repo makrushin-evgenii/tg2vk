@@ -19,9 +19,19 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
         public ulong Ts { get; set; }
 
         public static Updates FromJson(VkResponse response)
-        {
+        {                     
             var updates = new Updates();
-            Console.WriteLine(response.RawJson);
+
+            if (response == null)
+            {
+                return updates;
+            }
+            
+            if (!response.ContainsKey("ts") || !response.ContainsKey("updates"))
+            {
+                return updates;
+            }
+
             updates.Ts = (ulong) response["ts"];
             updates._updatesRaw = response["updates"];
 

@@ -52,6 +52,9 @@ namespace TelegramAggregator.Controls.MessagesControl.Services.LongPoll
     /// <returns></returns>
     public static Update FromJson(VkResponseArray response)
     {
+      if (response == null)
+        return null;
+      
       var update = new Update();
       var code = (int) response.First();
       switch (code)
